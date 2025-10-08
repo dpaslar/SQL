@@ -1,0 +1,139 @@
+-- ==============================
+-- 1️⃣ CRIAÇÃO DAS TABELAS
+-- ==============================
+
+CREATE TABLE Clientes (
+    ClienteID INT PRIMARY KEY,
+    Nome VARCHAR(50),
+    Idade INT,
+    Cidade VARCHAR(50),
+    Estado VARCHAR(2)
+);
+
+CREATE TABLE Produtos (
+    ProdutoID INT PRIMARY KEY,
+    NomeProduto VARCHAR(50),
+    Categoria VARCHAR(50),
+    Preco DECIMAL(10,2)
+);
+
+CREATE TABLE Vendas (
+    VendaID INT PRIMARY KEY,
+    ClienteID INT,
+    ProdutoID INT,
+    DataVenda DATE,
+    Quantidade INT,
+    FOREIGN KEY (ClienteID) REFERENCES Clientes(ClienteID),
+    FOREIGN KEY (ProdutoID) REFERENCES Produtos(ProdutoID)
+);
+
+CREATE TABLE Pagamentos (
+    PagamentoID INT PRIMARY KEY,
+    VendaID INT,
+    MetodoPagamento VARCHAR(20),
+    ValorPago DECIMAL(10,2),
+    FOREIGN KEY (VendaID) REFERENCES Vendas(VendaID)
+);
+
+-- ==============================
+-- 2️⃣ INSERÇÃO DE DADOS FICTÍCIOS
+-- ==============================
+
+-- Clientes
+INSERT INTO Clientes VALUES
+(1, 'Ana Silva', 28, 'São Paulo', 'SP'),
+(2, 'Bruno Costa', 35, 'Rio de Janeiro', 'RJ'),
+(3, 'Carla Lima', 42, 'Belo Horizonte', 'MG'),
+(4, 'Daniel Souza', 30, 'Curitiba', 'PR'),
+(5, 'Elisa Ferreira', 25, 'Porto Alegre', 'RS');
+
+-- Produtos
+INSERT INTO Produtos VALUES
+(1, 'Notebook Gamer', 'Eletrônicos', 4500.00),
+(2, 'Camiseta', 'Vestuário', 80.00),
+(3, 'Fone Bluetooth', 'Eletrônicos', 300.00),
+(4, 'Livro de SQL', 'Livros', 50.00),
+(5, 'Tênis Esportivo', 'Vestuário', 250.00);
+
+-- Vendas
+INSERT INTO Vendas VALUES
+(1, 1, 1, '2025-10-01', 1),
+(2, 2, 3, '2025-10-02', 2),
+(3, 3, 2, '2025-10-03', 5),
+(4, 4, 5, '2025-10-04', 1),
+(5, 5, 4, '2025-10-05', 3),
+(6, 1, 2, '2025-10-06', 2);
+
+-- Pagamentos
+INSERT INTO Pagamentos VALUES
+(1, 1, 'Cartão de Crédito', 4500.00),
+(2, 2, 'Pix', 600.00),
+(3, 3, 'Dinheiro', 400.00),
+(4, 4, 'Cartão de Débito', 250.00),
+(5, 5, 'Pix', 150.00),
+(6, 6, 'Cartão de Crédito', 160.00);
+
+-- ==============================
+-- 3️⃣ QUERIES AVANÇADAS
+-- ==============================
+
+-- a) Receita total por cliente
+SELECT c.Nome, SUM(p.ValorPago) AS ReceitaTotal
+FROM Clientes c
+JOIN Vendas v ON c.ClienteID = v.ClienteID
+JOIN Pagamentos p ON v.VendaID = p.VendaID
+GROUP BY c.Nome
+ORDER BY ReceitaTotal DESC;
+
+-- b) Produto mais vendido por quantidade
+SELECT pr.NomeProduto, SUM(v.Quantidade) AS TotalVendido
+FROM Vendas v
+JOIN Produtos pr ON v.ProdutoID = pr.ProdutoID
+GROUP BY pr.NomeProduto
+ORDER BY TotalVendido DESC
+LIMIT 5;
+
+-- c) Receita por categoria de produto
+SELECT pr.Categoria, SUM(p.ValorPago) AS ReceitaCategoria
+FROM Vendas v
+JOIN Produtos pr ON v.ProdutoID = pr.ProdutoID
+JOIN Pagamentos p ON v.VendaID = p.VendaID
+GROUP BY pr.Categoria;
+
+-- d) Clientes que gastaram acima da média
+SELECT Nome, ReceitaTotal
+FROM (
+    SELECT c.ClienteID, c.Nome, SUM(p.ValorPago) AS ReceitaTotal
+    FROM Clientes c
+    JOIN Vendas v ON c.ClienteID = v.ClienteID
+    JOIN Pagamentos p ON v.VendaID = p.VendaID
+    GROUP BY c.ClienteID, c.Nome
+) AS ReceitaCliente
+WHERE ReceitaTotal > (
+    SELECT AVG(Total)
+    FROM (
+        SELECT SUM(p2.ValorPago) AS Total
+        FROM Clientes c2
+        JOIN Vendas v2 ON c2.ClienteID = v2.ClienteID
+        JOIN Pagamentos p2 ON v2.VendaID = p2.VendaID
+        GROUP BY c2.ClienteID
+    ) AS MediaReceita
+);
+
+-- e) Receita mensal total
+SELECT DATE_FORMAT(v.DataVenda, '%Y-%m') AS Mes, SUM(p.ValorPago) AS ReceitaMensal
+FROM Vendas v
+JOIN Pagamentos p ON v.VendaID = p.VendaID
+GROUP BY DATE_FORMAT(v.DataVenda, '%Y-%m')
+ORDER BY Mes;
+
+-- f) Ranking de clientes por gasto
+SELECT c.Nome, SUM(p.ValorPago) AS TotalGasto,
+       @rank := @rank + 1 AS Ranking
+FROM Clientes c
+JOIN Vendas v ON c.ClienteID = v.ClienteID
+JOIN Pagamentos p ON v.VendaID = p.VendaID
+CROSS JOIN (SELECT @rank := 0) r
+GROUP BY c.ClienteID, c.Nome
+ORDER BY TotalGasto DESC;
+
